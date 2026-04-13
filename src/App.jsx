@@ -7,6 +7,7 @@ import { ExplorerNav } from "./components/ExplorerNav";
 import { ContentTypesView } from "./components/ContentTypesView";
 import { EntriesView } from "./components/EntriesView";
 import { LearnView } from "./components/LearnView";
+import { SitePreviewView } from "./components/SitePreviewView";
 import "./styles/explorer.css";
 
 export default function ContentfulExplorer() {
@@ -132,6 +133,10 @@ export default function ContentfulExplorer() {
           onSelectEntry={setSelectedEntry}
           usePreview={usePreview}
         />
+      )}
+
+      {view === "site" && !loading && (
+        <SitePreviewView config={config} contentTypes={contentTypes} usePreview={usePreview} />
       )}
 
       {view === "learn" && <LearnView learnSection={learnSection} onLearnSectionChange={setLearnSection} />}
