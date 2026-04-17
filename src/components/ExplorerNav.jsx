@@ -2,6 +2,7 @@ const TABS = [
   { id: "types", label: "Content Model", icon: "🧱" },
   { id: "entries", label: "Entries", icon: "📝" },
   { id: "assets", label: "Images API", icon: "🖼️" },
+  { id: "graphql", label: "GraphQL", icon: "⬡" },
   { id: "site", label: "Site preview", icon: "🌐" },
   { id: "learn", label: "Learn", icon: "📚" },
 ];

@@ -1,18 +1,21 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { getContentfulConfig } from "./config/contentfulEnv";
-import { cfFetch } from "./api/contentfulClient";
+import { cfFetch, cfCmaFetch } from "./api/contentfulClient";
 import { MissingConfig } from "./components/MissingConfig";
 import { ExplorerHeader } from "./components/ExplorerHeader";
 import { ExplorerNav } from "./components/ExplorerNav";
 import { ContentTypesView } from "./components/ContentTypesView";
 import { EntriesView } from "./components/EntriesView";
 import { AssetsView } from "./components/AssetsView";
+import { GraphQLView } from "./components/GraphQLView";
 import { LearnView } from "./components/LearnView";
 import { SitePreviewView } from "./components/SitePreviewView";
 import "./styles/explorer.css";
 
 export default function ContentfulExplorer() {
-  const config = useMemo(() => getContentfulConfig(), []);
+  // activeEnvironment: null = use default from .env, string = override
+  const [activeEnvironment, setActiveEnvironment] = useState(null);
+  const config = useMemo(() => getContentfulConfig(activeEnvironment), [activeEnvironment]);
 
   const [view, setView] = useState("types");
   const [usePreview, setUsePreview] = useState(false);
@@ -25,6 +28,7 @@ export default function ContentfulExplorer() {
   const [learnSection, setLearnSection] = useState(0);
   const [locales, setLocales] = useState([]);
   const [selectedLocale, setSelectedLocale] = useState(null);
+  const [environments, setEnvironments] = useState([]);
 
   const fetchLocales = useCallback(async () => {
     if (!config.ok) return;
@@ -36,6 +40,16 @@ export default function ContentfulExplorer() {
       if (defaultLocale) setSelectedLocale(defaultLocale.code);
     } catch {
       // locales are non-critical; silently ignore
+    }
+  }, [config]);
+
+  const fetchEnvironments = useCallback(async () => {
+    if (!config.ok || !config.cmaToken) return;
+    try {
+      const data = await cfCmaFetch(config, "/environments");
+      setEnvironments(data.items || []);
+    } catch {
+      // non-critical; CMA token may lack permissions
     }
   }, [config]);
 
@@ -73,9 +87,10 @@ export default function ContentfulExplorer() {
     const id = setTimeout(() => {
       fetchTypes();
       fetchLocales();
+      fetchEnvironments();
     }, 0);
     return () => clearTimeout(id);
-  }, [config.ok, fetchTypes, fetchLocales]);
+  }, [config.ok, fetchTypes, fetchLocales, fetchEnvironments]);
 
   useEffect(() => {
     if (!selectedType || !config.ok) return;
@@ -92,6 +107,15 @@ export default function ContentfulExplorer() {
     setView("entries");
   };
 
+  const handleEnvironmentChange = (envId) => {
+    // Clear type/entry selection immediately when switching environments,
+    // since content types differ per environment
+    setSelectedType(null);
+    setSelectedEntry(null);
+    setEntries([]);
+    setActiveEnvironment(envId === config.environment && !activeEnvironment ? null : envId);
+  };
+
   if (!config.ok) {
     return <MissingConfig missing={config.missing} />;
   }
@@ -100,6 +124,10 @@ export default function ContentfulExplorer() {
     <div className="contentful-explorer">
       <ExplorerHeader
         spaceId={config.spaceId}
+        environment={config.environment}
+        environments={environments}
+        hasCmaToken={!!config.cmaToken}
+        onEnvironmentChange={handleEnvironmentChange}
         usePreview={usePreview}
         onTogglePreview={() => setUsePreview((p) => !p)}
       />
@@ -157,6 +185,10 @@ export default function ContentfulExplorer() {
       )}
 
       {view === "assets" && <AssetsView config={config} usePreview={usePreview} />}
+
+      {view === "graphql" && (
+        <GraphQLView config={config} contentTypes={contentTypes} usePreview={usePreview} />
+      )}
 
       {view === "site" && !loading && (
         <SitePreviewView config={config} contentTypes={contentTypes} usePreview={usePreview} />
