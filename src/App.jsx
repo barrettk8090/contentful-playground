@@ -6,6 +6,7 @@ import { ExplorerHeader } from "./components/ExplorerHeader";
 import { ExplorerNav } from "./components/ExplorerNav";
 import { ContentTypesView } from "./components/ContentTypesView";
 import { EntriesView } from "./components/EntriesView";
+import { AssetsView } from "./components/AssetsView";
 import { LearnView } from "./components/LearnView";
 import { SitePreviewView } from "./components/SitePreviewView";
 import "./styles/explorer.css";
@@ -22,6 +23,21 @@ export default function ContentfulExplorer() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [learnSection, setLearnSection] = useState(0);
+  const [locales, setLocales] = useState([]);
+  const [selectedLocale, setSelectedLocale] = useState(null);
+
+  const fetchLocales = useCallback(async () => {
+    if (!config.ok) return;
+    try {
+      const data = await cfFetch(config, "/locales", false);
+      const items = data.items || [];
+      setLocales(items);
+      const defaultLocale = items.find((l) => l.default) || items[0];
+      if (defaultLocale) setSelectedLocale(defaultLocale.code);
+    } catch {
+      // locales are non-critical; silently ignore
+    }
+  }, [config]);
 
   const fetchTypes = useCallback(async () => {
     if (!config.ok) return;
@@ -42,7 +58,7 @@ export default function ContentfulExplorer() {
       setLoading(true);
       setError(null);
       try {
-        const data = await cfFetch(config, `/entries?content_type=${typeId}&limit=25`, usePreview);
+        const data = await cfFetch(config, `/entries?content_type=${typeId}&limit=25&locale=*`, usePreview);
         setEntries(data.items || []);
       } catch (e) {
         setError(e.message);
@@ -56,9 +72,10 @@ export default function ContentfulExplorer() {
     if (!config.ok) return;
     const id = setTimeout(() => {
       fetchTypes();
+      fetchLocales();
     }, 0);
     return () => clearTimeout(id);
-  }, [config.ok, fetchTypes]);
+  }, [config.ok, fetchTypes, fetchLocales]);
 
   useEffect(() => {
     if (!selectedType || !config.ok) return;
@@ -122,6 +139,7 @@ export default function ContentfulExplorer() {
 
       {view === "entries" && !loading && (
         <EntriesView
+          config={config}
           contentTypes={contentTypes}
           selectedType={selectedType}
           onSelectType={(ct) => {
@@ -132,8 +150,13 @@ export default function ContentfulExplorer() {
           selectedEntry={selectedEntry}
           onSelectEntry={setSelectedEntry}
           usePreview={usePreview}
+          locales={locales}
+          selectedLocale={selectedLocale}
+          onLocaleChange={setSelectedLocale}
         />
       )}
+
+      {view === "assets" && <AssetsView config={config} usePreview={usePreview} />}
 
       {view === "site" && !loading && (
         <SitePreviewView config={config} contentTypes={contentTypes} usePreview={usePreview} />
